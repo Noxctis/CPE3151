@@ -85,15 +85,13 @@ def decrypt_message(ciphertext: bytes, private_key: rsa.PrivateKey) -> str:
 
 
 def sign_ciphertext(ciphertext: bytes, private_key: rsa.PrivateKey) -> bytes:
-    """Hash ciphertext with SHA-256 and sign the digest."""
-    digest = rsa.compute_hash(ciphertext, 'SHA-256')
-    return rsa.sign_hash(digest, private_key, 'SHA-256')
+    """Sign the ciphertext digest using SHA-256 via python-rsa."""
+    return rsa.sign(ciphertext, private_key, 'SHA-256')
 
 
 def verify_ciphertext_signature(ciphertext: bytes, signature: bytes, peer_public: rsa.PublicKey) -> bool:
-    digest = rsa.compute_hash(ciphertext, 'SHA-256')
     try:
-        rsa.verify_hash(digest, signature, peer_public)
+        rsa.verify(ciphertext, signature, peer_public)
         return True
     except rsa.VerificationError:
         return False
