@@ -6,19 +6,21 @@ from secure_chat_common import (
     TYPE_KEY,
     TYPE_MESSAGE,
     TYPE_SESSION_KEY,
-    aes_gcm_decrypt,
-    aes_gcm_encrypt,
+    create_authenticated_message,
     deserialize_public_key,
     generate_aes_key,
+    generate_rsa_keypair,
+    parse_authenticated_message,
     recv_frame,
     rsa_encrypt,
     send_frame,
+    serialize_public_key,
 )
 
 run = True
 
 
-def receiver(sock: socket.socket, aes_key: bytes):
+def receiver(sock: socket.socket, aes_key: bytes, server_pub_key):
     global run
     while run:
         frame = recv_frame(sock)
@@ -30,10 +32,10 @@ def receiver(sock: socket.socket, aes_key: bytes):
         if ftype != TYPE_MESSAGE:
             continue
         try:
-            plaintext = aes_gcm_decrypt(aes_key, payload)
+            plaintext = parse_authenticated_message(payload, aes_key, server_pub_key)
             text = plaintext.decode(errors='ignore')
-        except Exception:
-            print('Received an unreadable/invalid encrypted message.')
+        except Exception as e:
+            print(f'Received an invalid message: {e}')
             continue
         if text.strip().lower() == 'exit':
             print('Server requested to end chat. Closing client...')
@@ -43,7 +45,7 @@ def receiver(sock: socket.socket, aes_key: bytes):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Secure chat client (RSA + AES-GCM)')
+    parser = argparse.ArgumentParser(description='Secure chat client (RSA + AES-GCM with signatures)')
     parser.add_argument('--host', default='192.168.0.176', help='Server host/IP to connect to')
     parser.add_argument('--port', type=int, default=8000, help='Server port to connect to')
     args = parser.parse_args()
@@ -54,36 +56,43 @@ if __name__ == '__main__':
     s.connect((host, port))
     print(f'Connected to server at {host}:{port}. Type messages and press Enter. Type "exit" to quit.')
 
-    # Step 1: Receive server public key
+    # Step 1: Generate client's RSA keypair
+    client_private_key, client_public_key = generate_rsa_keypair()
+    client_pub_pem = serialize_public_key(client_public_key)
+    
+    # Step 2: Send client public key to server
+    send_frame(s, TYPE_KEY, client_pub_pem)
+    
+    # Step 3: Receive server public key
     frame = recv_frame(s)
     if frame is None:
         raise RuntimeError('Disconnected before receiving server public key')
     ftype, payload = frame
     if ftype != TYPE_KEY:
         raise RuntimeError('Unexpected frame (expected public key)')
-    server_pub = deserialize_public_key(payload)
+    server_pub_key = deserialize_public_key(payload)
 
-    # Step 2: Generate AES session key and send encrypted with RSA-OAEP
+    # Step 4: Generate AES session key and send encrypted with RSA-OAEP
     aes_key = generate_aes_key()
-    enc_key = rsa_encrypt(server_pub, aes_key)
+    enc_key = rsa_encrypt(server_pub_key, aes_key)
     send_frame(s, TYPE_SESSION_KEY, enc_key)
 
     run = True
-    rcv = Thread(target=receiver, args=(s, aes_key), daemon=True)
+    rcv = Thread(target=receiver, args=(s, aes_key, server_pub_key), daemon=True)
     rcv.start()
 
     while run:
         try:
             msg = input('Type Message: ')
-            enc = aes_gcm_encrypt(aes_key, msg.encode())
-            send_frame(s, TYPE_MESSAGE, enc)
+            auth_msg = create_authenticated_message(msg.encode(), aes_key, client_private_key)
+            send_frame(s, TYPE_MESSAGE, auth_msg)
             if msg.strip().lower() == 'exit':
                 run = False
                 break
         except (EOFError, KeyboardInterrupt):
             try:
-                enc = aes_gcm_encrypt(aes_key, b'exit')
-                send_frame(s, TYPE_MESSAGE, enc)
+                auth_msg = create_authenticated_message(b'exit', aes_key, client_private_key)
+                send_frame(s, TYPE_MESSAGE, auth_msg)
             except Exception:
                 pass
             run = False
