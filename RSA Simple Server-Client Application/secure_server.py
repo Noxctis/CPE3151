@@ -77,7 +77,7 @@ def send_messages(conn: socket.socket, aes_key: bytes, server_private_key):
             break
 
 
-def listen_connection(host: str = '192.168.0.176', port: int = 8000):
+def listen_connection(host: str = '0.0.0.0', port: int = 8000):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((host, port))
@@ -90,7 +90,7 @@ def listen_connection(host: str = '192.168.0.176', port: int = 8000):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Secure chat server (RSA + AES-GCM with signatures)')
-    parser.add_argument('--host', default='192.168.0.176', help='Host/IP to bind (use 0.0.0.0 to accept from any)')
+    parser.add_argument('--host', default='0.0.0.0', help='Host/IP to bind (use 0.0.0.0 to accept from any)')
     parser.add_argument('--port', type=int, default=8000, help='Port to listen on')
     args = parser.parse_args()
 
