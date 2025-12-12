@@ -28,7 +28,7 @@ def receiver(sock):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Simple chat client')
-    parser.add_argument('--host', default='192.168.0.177', help='Server host/IP to connect to')
+    parser.add_argument('--host', default='127.0.0.1', help='Server host/IP to connect to')
     parser.add_argument('--port', type=int, default=8000, help='Server port to connect to')
     args = parser.parse_args()
 

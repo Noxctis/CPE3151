@@ -44,6 +44,8 @@ TYPE_MESSAGE = ord('M')   # AES-GCM encrypted message
 
 
 # -------------- RSA helpers --------------
+# Authentication & Non-repudiation: these RSA primitives provide identities via signatures
+# Confidentiality (during key exchange): RSA-OAEP protects the AES session key in transit
 
 def generate_rsa_keypair(key_size: int = 2048) -> Tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_size)
@@ -83,7 +85,8 @@ def rsa_decrypt(private_key: rsa.RSAPrivateKey, ciphertext: bytes) -> bytes:
     )
 
 
-# -------------- Digital Signature helpers (Authentication) --------------
+# -------------- Digital Signature helpers (Authentication / Non-repudiation) --------------
+# Integrity + Authentication: RSA-PSS signatures let receivers verify origin and detect tampering
 
 def sign_hash(private_key: rsa.RSAPrivateKey, data: bytes) -> bytes:
     """Sign data using RSA-PSS with SHA-256. Returns the signature."""
@@ -123,6 +126,7 @@ def hash_data(data: bytes) -> bytes:
 
 
 # -------------- AES-GCM helpers --------------
+# Confidentiality + Integrity: AES-GCM encrypts payloads and supplies an authentication tag per message
 
 def generate_aes_key() -> bytes:
     return os.urandom(32)  # 256-bit key
@@ -145,6 +149,7 @@ def aes_gcm_decrypt(aes_key: bytes, data: bytes) -> bytes:
 
 
 # -------------- Authenticated Message helpers (Signature + Encryption) --------------
+# This layer glues confidentiality (AES-GCM) with authentication/non-repudiation (RSA-PSS) per message
 
 def create_authenticated_message(
     plaintext: bytes,
