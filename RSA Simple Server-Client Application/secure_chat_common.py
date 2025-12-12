@@ -116,15 +116,6 @@ def verify_signature(public_key: rsa.RSAPublicKey, data: bytes, signature: bytes
     except Exception:
         return False
 
-
-def hash_data(data: bytes) -> bytes:
-    """Compute SHA-256 hash of data."""
-    from cryptography.hazmat.backends import default_backend
-    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
-    digest.update(data)
-    return digest.finalize()
-
-
 # -------------- AES-GCM helpers --------------
 # Confidentiality + Integrity: AES-GCM encrypts payloads and supplies an authentication tag per message
 
